@@ -21,7 +21,7 @@ def run_dummy_server():
 
 Thread(target=run_dummy_server, daemon=True).start()
 
-# Cliente Gemini y Bot de Discord
+# Cliente Gemini
 client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
 SYSTEM_PROMPT = """
@@ -50,7 +50,11 @@ ESTRUCTURA DE RESPUESTA:
 - Talismán y Joyas requeridas
 """
 
-bot = commands.Bot(command_prefix="!", intents=discord.Intents.default())
+# Configuración explícita de Intents
+intents = discord.Intents.default()
+intents.message_content = True
+
+bot = commands.Bot(command_prefix="!", intents=intents)
 
 @bot.event
 async def on_ready():
