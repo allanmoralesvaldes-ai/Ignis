@@ -61,17 +61,22 @@ async def on_ready():
 async def ignis_cmd(interaction: discord.Interaction, consulta: str):
     await interaction.response.defer()
     
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=consulta,
-        config=types.GenerateContentConfig(
-            system_instruction=SYSTEM_PROMPT,
-            tools=[{"google_search": {}}],
-            temperature=0.2,
-        ),
-    )
-    
-    texto = response.text or "No pude procesar la consulta."
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=consulta,
+            config=types.GenerateContentConfig(
+                system_instruction=SYSTEM_PROMPT,
+                tools=[types.Tool(google_search=types.GoogleSearch())],
+                temperature=0.2,
+            ),
+        )
+        
+        texto = response.text or "No pude procesar la consulta."
+    except Exception as e:
+        print(f"Error al consultar Gemini: {e}")
+        texto = f"⚠️ Ocurrió un error al procesar la respuesta: {e}"
+        
     mensajes = [texto[i:i + 1900] for i in range(0, len(texto), 1900)]
     
     await interaction.followup.send(mensajes[0])
