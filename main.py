@@ -7,12 +7,20 @@ from discord.ext import commands
 from google import genai
 from google.genai import types
 
+# Cambia aquí el modelo si te sale error de cuota (429):
+# prueba "gemini-2.5-flash-lite"
+MODELO = "gemini-3.8-flash"
+
 # Mini servidor HTTP para que Render mantenga el bot activo en la capa gratis
 class DummyHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.end_headers()
         self.wfile.write(b"Ignis esta online!")
+
+    def do_HEAD(self):
+        self.send_response(200)
+        self.end_headers()
 
 def run_dummy_server():
     port = int(os.environ.get("PORT", 8080))
@@ -38,8 +46,9 @@ REGLAS DE PRECISIÓN TÉCNICA (OBLIGATORIO):
 2. ADAPTABILIDAD Y LÓGICA DE ARMA:
    - Adapta el set al juego consultado (ej. Fatalis/Safi en Iceborne; Dereliction/Mail of Hell en Sunbreak; Black X / JhoCena / Silver Sol en MHGU).
    - Respeta la lógica del arma: GS requiere Focus y habilidades de desenfunde; armas de combo rápido (LS, Duales) requieren afinidad constante y afilado. NUNCA sugieras Crit Draw en Katana o Duales.
-3. CERO ALUCINACIONES: NUNCA inventes piezas, joyas, afilados o slots. No mezcles Peak Performance con Resentment.
+3. CERO ALUCINACIONES: NUNCA inventes piezas, joyas, afilados o slots. No mezcles Peak Performance con Resentment. Si no estás seguro de una pieza o joya, dilo en vez de inventarla.
 4. INDEPENDENCIA TOTAL: Trata cada consulta de forma 100% INDEPENDIENTE. No recicles piezas de la respuesta anterior.
+5. DATOS FALTANTES: Si el cazador no indica el juego o el arma, pregúntalo antes de dar una build.
 
 ESTRUCTURA DE RESPUESTA:
 - Juego / Arma / Estilo
@@ -50,43 +59,47 @@ ESTRUCTURA DE RESPUESTA:
 - Talismán y Joyas requeridas
 """
 
-# Configuración explícita de Intents
+# Los comandos slash no necesitan message_content
 intents = discord.Intents.default()
-intents.message_content = True
 
-bot = commands.Bot(command_prefix="!", intents=intents)
+class IgnisBot(commands.Bot):
+    async def setup_hook(self):
+        # Se ejecuta una sola vez al arrancar
+        await self.tree.sync()
+
+bot = IgnisBot(command_prefix="!", intents=intents)
 
 @bot.event
 async def on_ready():
-    await bot.tree.sync()
-    print(f"Ignis encendido como {bot.user}")
+    print(f"Ignis encendido como {bot.user}", flush=True)
 
 @bot.tree.command(name="ignis", description="Consulta una build meta/speedrun a Ignis")
 async def ignis_cmd(interaction: discord.Interaction, consulta: str):
     await interaction.response.defer()
-    
+
     try:
-        response = client.models.generate_content(
-            model="gemini-3.8-flash",
+        # asyncio.to_thread evita que el bot se congele mientras Gemini responde
+        response = await asyncio.to_thread(
+            client.models.generate_content,
+            model=MODELO,
             contents=consulta,
             config=types.GenerateContentConfig(
                 system_instruction=SYSTEM_PROMPT,
-                tools=[types.Tool(google_search=types.GoogleSearch())],
                 temperature=0.2,
             ),
         )
-        
         texto = response.text or "No pude procesar la consulta."
     except Exception as e:
-        print(f"Error al consultar Gemini: {e}")
-        texto = f"⚠️ Ocurrió un error al procesar la respuesta: {e}"
-        
+        print(f"Error al consultar Gemini: {e}", flush=True)
+        if "429" in str(e):
+            texto = "⚠️ Ignis alcanzó su límite de consultas por ahora. Intenta de nuevo en unos minutos."
+        else:
+            texto = "⚠️ Ocurrió un error al procesar la consulta."
+
     mensajes = [texto[i:i + 1900] for i in range(0, len(texto), 1900)]
-    
+
     await interaction.followup.send(mensajes[0])
     for msg in mensajes[1:]:
-        await interaction.channel.send(msg)
-
-bot.run(os.environ["DISCORD_TOKEN"])
+        await interaction.followup.send(msg)
 
 bot.run(os.environ["DISCORD_TOKEN"])
