@@ -9,7 +9,7 @@ from google.genai import types
 
 # Cambia aquí el modelo si te sale error de cuota (429):
 # prueba "gemini-2.5-flash-lite"
-MODELO = "gemini-3.8-flash"
+MODELO = "gemini-2.5-flash-lite"
 
 # Mini servidor HTTP para que Render mantenga el bot activo en la capa gratis
 class DummyHandler(BaseHTTPRequestHandler):
