@@ -1,9 +1,27 @@
 import os
+import asyncio
+from http.server import HTTPServer, BaseHTTPRequestHandler
+from threading import Thread
 import discord
 from discord.ext import commands
 from google import genai
 from google.genai import types
 
+# Mini servidor HTTP para que Render mantenga el bot activo en la capa gratis
+class DummyHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Ignis esta online!")
+
+def run_dummy_server():
+    port = int(os.environ.get("PORT", 8080))
+    server = HTTPServer(("0.0.0.0", port), DummyHandler)
+    server.serve_forever()
+
+Thread(target=run_dummy_server, daemon=True).start()
+
+# Cliente Gemini y Bot de Discord
 client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
 SYSTEM_PROMPT = """
