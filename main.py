@@ -67,7 +67,7 @@ async def ignis_cmd(interaction: discord.Interaction, consulta: str):
     
     try:
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-3.8-flash",
             contents=consulta,
             config=types.GenerateContentConfig(
                 system_instruction=SYSTEM_PROMPT,
@@ -86,5 +86,7 @@ async def ignis_cmd(interaction: discord.Interaction, consulta: str):
     await interaction.followup.send(mensajes[0])
     for msg in mensajes[1:]:
         await interaction.channel.send(msg)
+
+bot.run(os.environ["DISCORD_TOKEN"])
 
 bot.run(os.environ["DISCORD_TOKEN"])
